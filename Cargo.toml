@@ -1,0 +1,6 @@
+[package]
+name = "rs-chip8-emu"
+version = "0.1.0"
+authors = ["Gautham Ganapathy <gauthamg@gmail.com>"]
+
+[dependencies]
