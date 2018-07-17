@@ -7,8 +7,15 @@ type Addr = u16;
 type RegNum = u8;
 type ByteVal = u8;
 
+#[derive(Debug)]
+struct OpVal(u8, u8, u8, u8);
+
+#[derive(Debug)]
 enum OpCode {
     ///// CHIP-8 opcodes /////
+
+    UND,  // Undefined
+    NOP,  // No-op
     
     // Syscall opcodes
     SYS(Addr), // Call RCA 1802 program at give address
@@ -75,43 +82,130 @@ enum OpCode {
     ///// Chip-48 opcodes
 }
 
+const PROG_START_ADDR: usize = 0x200;
+
 struct CPU {
-    pc: u16,
+    pc:   u16,
     vreg: [u8; 16],
     ireg: u16,
-    dt: u8,
-    st: u8,
+    dt:   u8,
+    st:   u8,
 }
 
 impl CPU {
-    fn init(&mut self) {
-        self.pc = 0x200;
+    fn new() -> Self {
+        CPU {
+            pc: PROG_START_ADDR as u16,
+            vreg: [0; 16],
+            ireg: 0,
+            dt: 0,
+            st: 0
+        }
     }
 
-    //fn decode_op(&self) -> OpCode {}
+    fn incr_pc(&mut self) {
+        self.pc += 2;
+    }
+    
+    fn decode_op(opval: OpVal) -> OpCode {
+        let OpVal(n0, n1, n2, n3) = opval;
+
+        match n0 {
+            0x1 => OpCode::JP(CPU::make_3nibble_addr(n1, n2, n3)),
+            _   => OpCode::UND
+            
+                
+        }
+    }
+
+    fn make_3nibble_addr(n0: u8, n1: u8, n2: u8) -> u16 {
+        ((n0 as u16) << 8) | ((n1 as u16) << 4) | (n2 as u16)
+    }
 }
 
-const MEMSIZE: usize = 4096;
+trait ByteAddressable {
+    fn read_byte(&self, Addr) -> ByteVal;
+    fn write_byte(&mut self, Addr, ByteVal);
+}
+                 
+struct Memory {
+    mem: Vec<u8>
+}
+
+impl Memory {
+    fn new(size: usize) -> Self {
+        let v = Vec<u8>::new();
+        for i in 0..size {
+            v.push_back(0);
+        }
+        Memory {
+            mem: &v
+        }
+    }
+}
+
+impl ByteAddressable for Memory {
+    fn read_byte(&self, addr: Addr) -> ByteVal {
+        self.mem[addr as usize]
+    }
+    
+    fn write_byte(&mut self, addr: Addr, val: ByteVal) {
+        self.mem[addr as usize] = val;
+    }
+}
+    
+const MEM_SIZE: usize = 4096;
+
 
 pub struct Chip8 {
     cpu: CPU,
-    mem: [u8; MEMSIZE],
+    mem: Memory
 }
 
 impl Chip8 {
-    fn init(&mut self) {
-        self.cpu.init();
-        self.mem = [0; MEMSIZE];
+    pub fn new() -> Chip8 {
+        Chip8 {
+            cpu: CPU::new(),
+            mem: Memory::new(MEM_SIZE)
+        }
     }
-
-    fn load_file(&self, path: &str) -> Result<()> {
+    
+    pub fn load_file(&mut self, path: &str) -> Result<()> {
         let mut f = File::open(path)?;
         let mut byte_vec = Vec::new();
 
-        let num_bytes = f.read_to_end(&mut byte_vec);
+        let read_bytes = f.read_to_end(&mut byte_vec)?;
 
-        println!("num_bytes = {:?}", num_bytes);
+        let memlen = if read_bytes < MEM_SIZE - PROG_START_ADDR {
+            read_bytes
+        } else {
+            MEM_SIZE - PROG_START_ADDR
+        };
 
+        for i in 0..memlen {
+            self.mem.write_byte((PROG_START_ADDR + i) as u16, byte_vec[i]);
+        }
+        
         Ok(())
+    }
+
+    pub fn cycle(&mut self) {
+        println!("Cycle start");
+        
+        let opval = self.fetch_op();
+        self.cpu.incr_pc();
+
+        println!("OpVal: {:x?}", opval);
+
+        let opcode = CPU::decode_op(opval);
+        println!("OpCode: {:x?}", opcode);
+
+        println!("Cycle end\n");
+    }
+
+    fn fetch_op(&self) -> OpVal {
+        let b0 = self.mem.read_byte(self.cpu.pc);
+        let b1 = self.mem.read_byte(self.cpu.pc + 1);
+        OpVal(b0 >> 4, b0 & 0xf, b1 >> 4, b1 & 0xf)
     }
 }
