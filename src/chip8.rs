@@ -90,6 +90,7 @@ struct CPU {
     ireg: u16,
     dt:   u8,
     st:   u8,
+    stack: Vec<Addr>
 }
 
 impl CPU {
@@ -99,7 +100,9 @@ impl CPU {
             vreg: [0; 16],
             ireg: 0,
             dt: 0,
-            st: 0
+            st: 0,
+            stack: Vec::new()
+                
         }
     }
 
@@ -107,40 +110,119 @@ impl CPU {
         self.pc += 2;
     }
 
-    fn fetch_op(&mut self, ba: &ByteAddressable) -> OpVal {
-        let b0 = ba.read_byte(self.pc);
-        let b1 = ba.read_byte(self.pc + 1);
+    fn fetch_op(&mut self, mem: &ByteAddressable) -> OpVal {
+        let b0 = mem.read_byte(self.pc);
+        let b1 = mem.read_byte(self.pc + 1);
 
         self.incr_pc();
         
         OpVal(b0 >> 4, b0 & 0xf, b1 >> 4, b1 & 0xf)
     }
     
-    fn decode_op(opval: OpVal) -> OpCode {
+    fn decode_op(opval: OpVal, mem: &ByteAddressable) {
         let OpVal(n0, n1, n2, n3) = opval;
+        let addr = ((n1 as Addr) << 8) | ((n2 as Addr) << 4) | (n3 as Addr);
+        let x = n1 as RegNum;
+        let y = n2 as RegNum;
+        let imm8 = ((n2 as ByteVal) << 4) | (n3 as ByteVal);
+        let imm4 = n3 as ByteVal;
+        
 
         match n0 {
             0x0 => match n1 {
-                0x0 if n2 == 0xe && n3 == 0x0 => OpCode::CLS,
-                0x0 if n2 == 0xe && n3 == 0xe => OpCode::RET,
-                _                             => OpCode::SYS(CPU::make_3nibble_addr(n1, n2, n3))
+                0x0 if n2 == 0xe && n3 == 0x0 => self.op_cls(),
+                0x0 if n2 == 0xe && n3 == 0xe => self.ret(),
+                _                             => self.sys(addr)
             }
             0x1 => OpCode::JP(CPU::make_3nibble_addr(n1, n2, n3)),
             0x2 => OpCode::CALL(CPU::make_3nibble_addr(n1, n2, n3)),
             _   => OpCode::UND
                 
-        }
+        };
     }
 
+    fn op_sys(&mut self, addr: Addr) {
+    }
+
+    fn op_cls(&mut self) {
+    }
+
+    fn op_ret(&mut self) {
+    }
+
+    fn op(&mut self) {
+    }
+
+    fn op(&mut self) {
+    }
+
+    fn op(&mut self) {
+    }
+
+    fn op(&mut self) {
+    }
+
+    fn op(&mut self) {
+    }
+
+    fn op(&mut self) {
+    }
+
+    fn op(&mut self) {
+    }
+
+    fn op(&mut self) {
+    }
+
+    fn op(&mut self) {
+    }
+
+    fn op(&mut self) {
+    }
+
+    fn op(&mut self) {
+    }
+
+    fn op(&mut self) {
+    }
+
+    fn op(&mut self) {
+    }
+
+    fn op(&mut self) {
+    }
+
+    fn op(&mut self) {
+    }
+
+    fn op(&mut self) {
+    }
+
+    fn op(&mut self) {
+    }
+
+    fn op(&mut self) {
+    }
+
+    fn op(&mut self) {
+    }
+
+    fn op(&mut self) {
+    }
+
+    /*
+    
     fn execute_op(&self, op: OpCode, ba: &mut ByteAddressable) {
         match op {
-            UND => eprintln!("Instruction could not be decoded"),
+            UND       => eprintln!("Instruction could not be decoded"),
+            SYS(addr) => 
         };
     }
 
     fn make_3nibble_addr(n0: u8, n1: u8, n2: u8) -> u16 {
         ((n0 as u16) << 8) | ((n1 as u16) << 4) | (n2 as u16)
     }
+    */
 
     fn read_reg(&self, regnum: RegNum) -> ByteVal {
         self.vreg[regnum as usize]
@@ -148,6 +230,14 @@ impl CPU {
 
     fn write_reg(&mut self, regnum: RegNum, val: ByteVal) {
         self.vreg[regnum as usize] = val;
+    }
+
+    fn push_addr(&mut self, addr: Addr) {
+        self.stack.push(addr);
+    }
+
+    fn pop_addr(&mut self) -> Addr {
+        self.stack.pop().unwrap_or(0)
     }
 }
 
