@@ -106,20 +106,48 @@ impl CPU {
     fn incr_pc(&mut self) {
         self.pc += 2;
     }
+
+    fn fetch_op(&mut self, ba: &ByteAddressable) -> OpVal {
+        let b0 = ba.read_byte(self.pc);
+        let b1 = ba.read_byte(self.pc + 1);
+
+        self.incr_pc();
+        
+        OpVal(b0 >> 4, b0 & 0xf, b1 >> 4, b1 & 0xf)
+    }
     
     fn decode_op(opval: OpVal) -> OpCode {
         let OpVal(n0, n1, n2, n3) = opval;
 
         match n0 {
+            0x0 => match n1 {
+                0x0 if n2 == 0xe && n3 == 0x0 => OpCode::CLS,
+                0x0 if n2 == 0xe && n3 == 0xe => OpCode::RET,
+                _                             => OpCode::SYS(CPU::make_3nibble_addr(n1, n2, n3))
+            }
             0x1 => OpCode::JP(CPU::make_3nibble_addr(n1, n2, n3)),
+            0x2 => OpCode::CALL(CPU::make_3nibble_addr(n1, n2, n3)),
             _   => OpCode::UND
-            
                 
         }
     }
 
+    fn execute_op(&self, op: OpCode, ba: &mut ByteAddressable) {
+        match op {
+            UND => eprintln!("Instruction could not be decoded"),
+        };
+    }
+
     fn make_3nibble_addr(n0: u8, n1: u8, n2: u8) -> u16 {
         ((n0 as u16) << 8) | ((n1 as u16) << 4) | (n2 as u16)
+    }
+
+    fn read_reg(&self, regnum: RegNum) -> ByteVal {
+        self.vreg[regnum as usize]
+    }
+
+    fn write_reg(&mut self, regnum: RegNum, val: ByteVal) {
+        self.vreg[regnum as usize] = val;
     }
 }
 
@@ -134,12 +162,8 @@ struct Memory {
 
 impl Memory {
     fn new(size: usize) -> Self {
-        let v = Vec<u8>::new();
-        for i in 0..size {
-            v.push_back(0);
-        }
         Memory {
-            mem: &v
+            mem: vec![0; size]
         }
     }
 }
@@ -192,20 +216,16 @@ impl Chip8 {
     pub fn cycle(&mut self) {
         println!("Cycle start");
         
-        let opval = self.fetch_op();
-        self.cpu.incr_pc();
+        let opval = self.cpu.fetch_op(&self.mem);
 
         println!("OpVal: {:x?}", opval);
 
         let opcode = CPU::decode_op(opval);
         println!("OpCode: {:x?}", opcode);
 
+        self.cpu.execute_op(opcode, &mut self.mem);
+
         println!("Cycle end\n");
     }
 
-    fn fetch_op(&self) -> OpVal {
-        let b0 = self.mem.read_byte(self.cpu.pc);
-        let b1 = self.mem.read_byte(self.cpu.pc + 1);
-        OpVal(b0 >> 4, b0 & 0xf, b1 >> 4, b1 & 0xf)
-    }
 }
