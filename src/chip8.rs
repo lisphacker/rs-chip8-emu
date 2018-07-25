@@ -119,7 +119,7 @@ impl CPU {
         OpVal(b0 >> 4, b0 & 0xf, b1 >> 4, b1 & 0xf)
     }
     
-    fn decode_op(opval: OpVal, mem: &ByteAddressable) {
+    fn decode_and_execute_op(&mut self, opval: OpVal, mem: &ByteAddressable) {
         let OpVal(n0, n1, n2, n3) = opval;
         let addr = ((n1 as Addr) << 8) | ((n2 as Addr) << 4) | (n3 as Addr);
         let x = n1 as RegNum;
@@ -131,12 +131,10 @@ impl CPU {
         match n0 {
             0x0 => match n1 {
                 0x0 if n2 == 0xe && n3 == 0x0 => self.op_cls(),
-                0x0 if n2 == 0xe && n3 == 0xe => self.ret(),
-                _                             => self.sys(addr)
+                0x0 if n2 == 0xe && n3 == 0xe => self.op_ret(),
+                _                             => self.op_sys(addr)
             }
-            0x1 => OpCode::JP(CPU::make_3nibble_addr(n1, n2, n3)),
-            0x2 => OpCode::CALL(CPU::make_3nibble_addr(n1, n2, n3)),
-            _   => OpCode::UND
+            _   => ()
                 
         };
     }
@@ -265,16 +263,20 @@ impl CPU {
     fn op_subn(&mut self, vx: RegNum, vy: RegNum) {
     }
 
-    fn op_rnd(&mut self) {
+    // vx <- rnd_val & val
+    fn op_rnd(&mut self, vx: RegNum, val: ByteVal) {
     }
 
-    fn op_drw(&mut self) {
+    // Draw
+    fn op_drw(&mut self, vx: RegNum, vy: RegNum, val: ByteVal) {
     }
 
-    fn op_skp(&mut self) {
+    // Skip next instruction if key specified in reg is pressed
+    fn op_skp(&mut self, vx: RegNum) {
     }
 
-    fn op_sknp(&mut self) {
+    // Skip next instruction if key specified in reg is not pressed
+    fn op_sknp(&mut self, vx: RegNum) {
     }
 
     fn op_(&mut self) {
@@ -380,10 +382,7 @@ impl Chip8 {
 
         println!("OpVal: {:x?}", opval);
 
-        let opcode = CPU::decode_op(opval);
-        println!("OpCode: {:x?}", opcode);
-
-        self.cpu.execute_op(opcode, &mut self.mem);
+        self.cpu.decode_and_execute_op(opval, &mut self.mem);
 
         println!("Cycle end\n");
     }
