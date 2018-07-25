@@ -110,7 +110,7 @@ impl CPU {
         self.pc += 2;
     }
 
-    fn fetch_op(&mut self, mem: &ByteAddressable) -> OpVal {
+    fn fetch_op(&mut self, mem: &MemoryInterface) -> OpVal {
         let b0 = mem.read_byte(self.pc);
         let b1 = mem.read_byte(self.pc + 1);
 
@@ -119,7 +119,7 @@ impl CPU {
         OpVal(b0 >> 4, b0 & 0xf, b1 >> 4, b1 & 0xf)
     }
     
-    fn decode_and_execute_op(&mut self, opval: OpVal, mem: &ByteAddressable) {
+    fn decode_and_execute_op(&mut self, opval: OpVal, mem: &MemoryInterface) {
         let OpVal(n0, n1, n2, n3) = opval;
         let addr = ((n1 as Addr) << 8) | ((n2 as Addr) << 4) | (n3 as Addr);
         let x = n1 as RegNum;
@@ -284,7 +284,7 @@ impl CPU {
 
     /*
     
-    fn execute_op(&self, op: OpCode, ba: &mut ByteAddressable) {
+    fn execute_op(&self, op: OpCode, ba: &mut MemoryInterface) {
         match op {
             UND       => eprintln!("Instruction could not be decoded"),
             SYS(addr) => 
@@ -313,7 +313,7 @@ impl CPU {
     }
 }
 
-trait ByteAddressable {
+trait MemoryInterface {
     fn read_byte(&self, Addr) -> ByteVal;
     fn write_byte(&mut self, Addr, ByteVal);
 }
@@ -330,7 +330,7 @@ impl Memory {
     }
 }
 
-impl ByteAddressable for Memory {
+impl MemoryInterface for Memory {
     fn read_byte(&self, addr: Addr) -> ByteVal {
         self.mem[addr as usize]
     }
