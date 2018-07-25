@@ -141,73 +141,143 @@ impl CPU {
         };
     }
 
+    // Call RCA 1802 program at give address
     fn op_sys(&mut self, addr: Addr) {
     }
 
+    // Clear the display
     fn op_cls(&mut self) {
     }
 
+    // Return from subroutine
     fn op_ret(&mut self) {
     }
 
-    fn op(&mut self) {
+    // Jump to addr
+    fn op_jp(&mut self, addr: Addr) {
     }
 
-    fn op(&mut self) {
+    // Jump to V0 + addr
+    fn op_jp_rel(&mut self, addr: Addr) {
     }
 
-    fn op(&mut self) {
+    // Call subroutine at addr
+    fn op_call(&mut self, addr: Addr) {
     }
 
-    fn op(&mut self) {
+    // Skip next instruction if reg == val
+    fn op_sec(&mut self, vx: RegNum, val: ByteVal) {
     }
 
-    fn op(&mut self) {
+    // Skip next instruction if reg != val
+    fn op_snec(&mut self, vx: RegNum, val: ByteVal) {
     }
 
-    fn op(&mut self) {
+    // Skip next instruction if reg1 == reg2
+    fn op_se(&mut self, vx: RegNum, vy: RegNum) {
     }
 
-    fn op(&mut self) {
+    // Skip next instruction if reg1 != reg2
+    fn op_sne(&mut self, vx: RegNum, vy: RegNum) {
     }
 
-    fn op(&mut self) {
+    // Load register with val
+    fn op_ldc(&mut self, vx: RegNum, val: ByteVal) {
     }
 
-    fn op(&mut self) {
+    // Load register from another register
+    fn op_ld(&mut self, vx: RegNum, vy: RegNum) {
     }
 
-    fn op(&mut self) {
+    // Load IREG with address
+    fn op_ldi(&mut self, addr: Addr) {
     }
 
-    fn op(&mut self) {
+    // Load register from delay timer
+    fn op_lddt(&mut self, vx: RegNum) {
     }
 
-    fn op(&mut self) {
+    // Store register into delay timer
+    fn op_stdt(&mut self, vx: RegNum) {
     }
 
-    fn op(&mut self) {
+    // Store register into sound timer
+    fn op_stst(&mut self, vx: RegNum) {
     }
 
-    fn op(&mut self) {
+    // Wait for key and place key in reg
+    fn op_ldtc(&mut self, vx: RegNum, key: ByteVal) {
     }
 
-    fn op(&mut self) {
+    // Load IREG with sprite address of character in vx
+    fn op_ldsprt(&mut self, vx: RegNum) {
     }
 
-    fn op(&mut self) {
+    // Store BCD representation of value in vx to [IREG] and [IREG+1]
+    fn op_stbcd(&mut self, vx: RegNum) {
     }
 
-    fn op(&mut self) {
+    // Load registers v0-vx from [i]
+    fn op_ldall(&mut self, vx: RegNum) {
     }
 
-    fn op(&mut self) {
+    //Store registers v0-vx to [i]
+    fn op_stall(&mut self, vs: RegNum) {
     }
 
-    fn op(&mut self) {
+    // vx <- vx | vy
+    fn op_or(&mut self, vx: RegNum, vy: RegNum) {
     }
 
-    fn op(&mut self) {
+    // vx <- vx & vy
+    fn op_and(&mut self, vx: RegNum, vy: RegNum) {
+    }
+
+    // vx <- vx & vy
+    fn op_xor(&mut self, vx: RegNum, vy: RegNum) {
+    }
+
+    // vx <- vx >> 1
+    fn op_shr(&mut self, vx: RegNum) {
+    }
+
+    // vx <- vx << 1
+    fn op_shl(&mut self, vx: RegNum) {
+    }
+
+    // vx <- vx + val
+    fn op_addc(&mut self, vx: RegNum, val: ByteVal) {
+    }
+
+    // vx <- vx + vy
+    fn op_add(&mut self, vx: RegNum, vy: RegNum) {
+    }
+
+    // IREG <- IREG + vx
+    fn op_addi(&mut self, vx: RegNum) {
+    }
+
+    // vx <- vx - vy
+    fn op_sub(&mut self, vx: RegNum, vy: RegNum) {
+    }
+
+    // vx <- vy - vx
+    fn op_subn(&mut self, vx: RegNum, vy: RegNum) {
+    }
+
+    fn op_rnd(&mut self) {
+    }
+
+    fn op_drw(&mut self) {
+    }
+
+    fn op_skp(&mut self) {
+    }
+
+    fn op_sknp(&mut self) {
+    }
+
+    fn op_(&mut self) {
     }
 
     /*
