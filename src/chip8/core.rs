@@ -6,95 +6,23 @@ use chip8::types::ByteVal;
 #[derive(Debug)]
 pub struct OpVal(u8, u8, u8, u8);
 
-/*
-#[derive(Debug)]
-enum OpCode {
-    ///// CHIP-8 opcodes /////
-
-    UND,  // Undefined
-    NOP,  // No-op
-    
-    // Syscall opcodes
-    SYS(Addr), // Call RCA 1802 program at give address
-
-    // Display opcodes
-    CLS, // Clear the display
-
-    // Flow opcodes
-    RET,         // Return from subroutine
-    JP(Addr),    // Jump to addr
-    JPREL(Addr), // Jump to V0 + addr
-    CALL(Addr),  // Call subroutine at addr
-
-    // Conditional opcodes
-    SEC(RegNum, ByteVal),  // Skip next instruction if reg == val
-    SNEC(RegNum, ByteVal), // Skip next instruction if reg != val
-    SE(RegNum, RegNum),    // Skip next instruction if reg1 == reg2
-    SNE(RegNum, RegNum),   // Skip next instruction if reg1 != reg2
-
-    // Assign opcodes
-    LDC(RegNum, ByteVal), // reg <- val
-    LD(RegNum, RegNum),   // reg1 <- reg2
-    LDI(Addr),            // I <- addr
-
-    LDDT(RegNum), // reg <- delay timer
-    STDT(RegNum), // delay timer <- reg
-    STST(RegNum), // sound timer <- reg
-
-    LDTC(RegNum, ByteVal), // Wait for key and place key in reg
-
-    LDSPRT(RegNum), // I <- sprite_addr[reg]
-
-    STBCD(RegNum), // [I] <- bcd(reg)
-
-    LDALL(ByteVal), // v0-vx <- [I]
-    StALL(ByteVal), // [I] <- v0-vx
-
-    // BitOp opcodes
-    OR(RegNum, RegNum),  // reg1 <- reg1 | reg2
-    AND(RegNum, RegNum), // reg1 <- reg1 & reg2
-    XOR(RegNum, RegNum), // reg1 <- reg1 ^ reg2
-    SHR(RegNum, RegNum), // reg1 <- reg2 >> 1
-    SHL(RegNum, RegNum), // reg1 <- reg2 <- reg2 << 1
-
-    // Math opcodes
-    ADDC(RegNum, ByteVal), // reg1 <- reg1 + val
-    ADD(RegNum, RegNum),   // reg1 <- reg1 + reg2
-    ADDI(RegNum),          // I <- I + reg
-    SUB(RegNum, RegNum),   // reg1 <- reg1 - reg2
-    SUBN(RegNum, RegNum),  // reg1 <- reg2 - reg1
-
-    // RNG opcodes
-    RND(RegNum, ByteVal), // reg <- rnd_val & val
-
-    // Display opcodes
-    DRW(RegNum, RegNum, ByteVal),
-
-    // Key opcodes
-    SKP(RegNum), // Skip next instruction if key specified in reg is pressed
-    SKNP(RegNum), // Skip next instruction if key specified in reg is not pressed
-
-    
-
-    ///// Chip-48 opcodes
-}
- */
-
 pub trait MemoryInterface {
     fn read_byte(&self, Addr) -> ByteVal;
     fn write_byte(&mut self, Addr, ByteVal);
 }
 
 pub trait DisplayInterface {
-    fn clear(&self);
+    fn dimensions(&self) -> (u8, u8);
+    fn clear(&mut self);
+    fn toggle_pixel(&mut self, x: u8, y: u8);
 }
                  
-pub const PROG_START_ADDR: usize = 0x200;
+pub const PROG_START_ADDR: Addr = 0x200;
 
 pub struct CPU<'a> {
-    pc:   u16,
+    pc:   Addr,
     vreg: [u8; 16],
-    ireg: u16,
+    ireg: Addr,
     dt:   u8,
     st:   u8,
     stack: Vec<Addr>,
@@ -106,7 +34,7 @@ pub struct CPU<'a> {
 impl<'a> CPU<'a> {
     pub fn new(mem: &'a mut MemoryInterface, display: &'a mut DisplayInterface) -> Self {
         CPU {
-            pc: PROG_START_ADDR as u16,
+            pc: PROG_START_ADDR,
             vreg: [0; 16],
             ireg: 0,
             dt: 0,
@@ -118,6 +46,10 @@ impl<'a> CPU<'a> {
         }
     }
 
+    fn set_pc(&mut self, addr: Addr) {
+        self.pc = addr;
+    }
+    
     fn incr_pc(&mut self) {
         self.pc += 2;
     }
@@ -165,7 +97,7 @@ impl<'a> CPU<'a> {
             (0x8,   _,   _, 0x7) => self.op_subn(x, y),
             (0x8,   _,   _, 0xe) => self.op_shl(x),
 
-            (0x9,   _,   _, 0x0) => self.op_se(x, y),
+            (0x9,   _,   _, 0x0) => self.op_sne(x, y),
 
             (0xa,   _,   _,   _) => self.op_ldi(addr),
             (0xb,   _,   _,   _) => self.op_jp_rel(addr),
@@ -201,166 +133,203 @@ impl<'a> CPU<'a> {
 
     // Return from subroutine
     fn op_ret(&mut self) {
+        match self.stack.pop() {
+            Some(addr) => self.set_pc(addr),
+            _          => eprintln!("Call stack underflow")
+        };
     }
 
     // Jump to addr
     fn op_jp(&mut self, addr: Addr) {
+        self.pc = addr;
     }
 
     // Jump to V0 + addr
     fn op_jp_rel(&mut self, addr: Addr) {
+        self.pc = self.vreg[0] as Addr + addr;
     }
 
     // Call subroutine at addr
     fn op_call(&mut self, addr: Addr) {
+        self.stack.push(self.pc);
+        self.pc = addr;
     }
 
     // Skip next instruction if reg == val
     fn op_sec(&mut self, vx: RegNum, val: ByteVal) {
+        if self.vreg[vx] == val {
+            self.incr_pc();
+        }
     }
 
     // Skip next instruction if reg != val
     fn op_snec(&mut self, vx: RegNum, val: ByteVal) {
+        if self.vreg[vx] != val {
+            self.incr_pc();
+        }
     }
 
     // Skip next instruction if reg1 == reg2
     fn op_se(&mut self, vx: RegNum, vy: RegNum) {
+        if self.vreg[vx] == self.vreg[vy] {
+            self.incr_pc();
+        }
     }
 
     // Skip next instruction if reg1 != reg2
     fn op_sne(&mut self, vx: RegNum, vy: RegNum) {
+        if self.vreg[vx] != self.vreg[vy] {
+            self.incr_pc();
+        }
     }
 
     // Load register with val
     fn op_ldc(&mut self, vx: RegNum, val: ByteVal) {
+        self.vreg[vx] = val;
     }
 
     // Load register from another register
     fn op_ld(&mut self, vx: RegNum, vy: RegNum) {
+        self.vreg[vx] = self.vreg[vy];
     }
 
     // Load IREG with address
     fn op_ldi(&mut self, addr: Addr) {
+        self.ireg = addr;
     }
 
     // Load register from delay timer
     fn op_lddt(&mut self, vx: RegNum) {
+        self.vreg[vx] = self.dt;
     }
 
     // Store register into delay timer
     fn op_stdt(&mut self, vx: RegNum) {
+        self.dt = self.vreg[vx];
     }
 
     // Store register into sound timer
     fn op_stst(&mut self, vx: RegNum) {
+        self.st = self.vreg[vx];
     }
 
     // Wait for key and place key in reg
     fn op_ldtc(&mut self, vx: RegNum) {
+        //TODO
     }
 
     // Load IREG with sprite address of character in vx
     fn op_ldsprt(&mut self, vx: RegNum) {
+        //TODO
     }
 
     // Store BCD representation of value in vx to [IREG], [IREG+1] and [IREG+2]
     fn op_stbcd(&mut self, vx: RegNum) {
+        //TODO
     }
 
     // Load registers v0-vx from [i]
     fn op_ldall(&mut self, vx: RegNum) {
+        for i in 0..=vx {
+            self.vreg[i] = self.mem.read_byte(self.ireg + i);
+        }
     }
 
     //Store registers v0-vx to [i]
     fn op_stall(&mut self, vx: RegNum) {
+        for i in 0..=vx {
+            self.mem.write_byte(self.ireg + i, self.vreg[i]);
+        }
     }
 
     // vx <- vx | vy
     fn op_or(&mut self, vx: RegNum, vy: RegNum) {
+        self.vreg[vx] |= self.vreg[vy];
     }
 
     // vx <- vx & vy
     fn op_and(&mut self, vx: RegNum, vy: RegNum) {
+        self.vreg[vx] &= self.vreg[vy];
     }
 
     // vx <- vx & vy
     fn op_xor(&mut self, vx: RegNum, vy: RegNum) {
+        self.vreg[vx] ^= self.vreg[vy];
     }
 
     // vx <- vx >> 1
     fn op_shr(&mut self, vx: RegNum) {
+        self.vreg[0xf] = self.vreg[vx] & 1;
+        self.vreg[vx] >>= 1;
     }
 
     // vx <- vx << 1
     fn op_shl(&mut self, vx: RegNum) {
+        self.vreg[0xf] = self.vreg[vx] >> 7;
+        self.vreg[vx] <<= 1;
     }
 
     // vx <- vx + val
     fn op_addc(&mut self, vx: RegNum, val: ByteVal) {
+        self.vreg[vx] += val;
     }
 
     // vx <- vx + vy
     fn op_add(&mut self, vx: RegNum, vy: RegNum) {
+        self.vreg[vx] += self.vreg[vy];
     }
+    
     // IREG <- IREG + vx
     fn op_addi(&mut self, vx: RegNum) {
+        self.ireg += self.vreg[vx] as Addr;
     }
 
     // vx <- vx - vy
     fn op_sub(&mut self, vx: RegNum, vy: RegNum) {
+        self.vreg[vx] -= self.vreg[vy];
     }
 
     // vx <- vy - vx
     fn op_subn(&mut self, vx: RegNum, vy: RegNum) {
+        self.vreg[vx] = self.vreg[vy] - self.vreg[vx];
     }
 
     // vx <- rnd_val & val
     fn op_rnd(&mut self, vx: RegNum, val: ByteVal) {
+        //TODO
     }
 
     // Draw
     fn op_drw(&mut self, vx: RegNum, vy: RegNum, val: ByteVal) {
+        //INCOMPLETEx
+        let x = self.vreg[vx];
+        let y = self.vreg[vy];
+        let mut dx = 0;
+        let mut dy = 0;
+        
+        for i in 0..val {
+            self.display.toggle_pixel(x + dx, y + dy, self.mem.read_byte(self.ireg + i));
+            dx++;
+            if dx == 8 {
+                dx = 0;
+                dy++;
+            }
+        }
+                
     }
 
     // Skip next instruction if key specified in reg is pressed
     fn op_skp(&mut self, vx: RegNum) {
+        //TODO
     }
 
     // Skip next instruction if key specified in reg is not pressed
     fn op_sknp(&mut self, vx: RegNum) {
+        //TODO
     }
 
     fn op_undef(&mut self) {
-    }
-
-    /*
-    
-    fn execute_op(&self, op: OpCode, ba: &mut MemoryInterface) {
-        match op {
-            UND       => eprintln!("Instruction could not be decoded"),
-            SYS(addr) => 
-        };
-    }
-
-    fn make_3nibble_addr(n0: u8, n1: u8, n2: u8) -> u16 {
-        ((n0 as u16) << 8) | ((n1 as u16) << 4) | (n2 as u16)
-    }
-    */
-
-    fn read_reg(&self, regnum: RegNum) -> ByteVal {
-        self.vreg[regnum as usize]
-    }
-
-    fn write_reg(&mut self, regnum: RegNum, val: ByteVal) {
-        self.vreg[regnum as usize] = val;
-    }
-
-    fn push_addr(&mut self, addr: Addr) {
-        self.stack.push(addr);
-    }
-
-    fn pop_addr(&mut self) -> Addr {
-        self.stack.pop().unwrap_or(0)
+        eprintln!("Unknown instruction!");
     }
 }
 
