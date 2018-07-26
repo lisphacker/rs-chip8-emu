@@ -91,25 +91,30 @@ pub trait DisplayInterface {
                  
 pub const PROG_START_ADDR: usize = 0x200;
 
-pub struct CPU {
+pub struct CPU<'a> {
     pc:   u16,
     vreg: [u8; 16],
     ireg: u16,
     dt:   u8,
     st:   u8,
-    stack: Vec<Addr>
+    stack: Vec<Addr>,
+        
+    mem:     &'a mut MemoryInterface,
+    display: &'a mut DisplayInterface
 }
 
-impl CPU {
-    pub fn new() -> Self {
+impl<'a> CPU<'a> {
+    pub fn new(mem: &'a mut MemoryInterface, display: &'a mut DisplayInterface) -> Self {
         CPU {
             pc: PROG_START_ADDR as u16,
             vreg: [0; 16],
             ireg: 0,
             dt: 0,
             st: 0,
-            stack: Vec::new()
-                
+            stack: Vec::new(),
+
+            mem: mem,
+            display: display
         }
     }
 
@@ -117,18 +122,16 @@ impl CPU {
         self.pc += 2;
     }
 
-    pub fn fetch_op(&mut self, mem: &MemoryInterface) -> OpVal {
-        let b0 = mem.read_byte(self.pc);
-        let b1 = mem.read_byte(self.pc + 1);
+    pub fn fetch_op(&mut self) -> OpVal {
+        let b0 = self.mem.read_byte(self.pc);
+        let b1 = self.mem.read_byte(self.pc + 1);
 
         self.incr_pc();
         
         OpVal(b0 >> 4, b0 & 0xf, b1 >> 4, b1 & 0xf)
     }
     
-    pub fn decode_and_execute_op(&mut self, opval: OpVal,
-                                 mem: &mut MemoryInterface,
-                                 display: &mut DisplayInterface) {
+    pub fn decode_and_execute_op(&mut self, opval: OpVal) {
         let OpVal(n0, n1, n2, n3) = opval;
         let addr = ((n1 as Addr) << 8) | ((n2 as Addr) << 4) | (n3 as Addr);
         let x = n1 as RegNum;
@@ -139,6 +142,7 @@ impl CPU {
 
         match (n0, n1, n2, n3) {
             (0x0, 0x0, 0x0, 0x0) => self.op_undef(),
+            (0x0, 0x0, 0xe, 0x0) => self.op_cls(),
             (0x0, 0x0, 0xe, 0xe) => self.op_ret(),
             (0x0,   _,   _,   _) => self.op_sys(addr),
             
@@ -192,6 +196,7 @@ impl CPU {
 
     // Clear the display
     fn op_cls(&mut self) {
+        self.display.clear();
     }
 
     // Return from subroutine
