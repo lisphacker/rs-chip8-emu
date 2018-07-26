@@ -14,7 +14,19 @@ pub trait MemoryInterface {
 pub trait DisplayInterface {
     fn dimensions(&self) -> (u8, u8);
     fn clear(&mut self);
-    fn toggle_pixel(&mut self, x: u8, y: u8);
+    
+    fn read_pixel(&self, x: u8, y: u8) -> u8;
+    
+    fn write_pixel(&mut self, x: u8, y: u8, val: u8);
+    fn write_pixel_xor(&mut self, x: u8, y: u8, val: u8) -> bool;
+
+    fn write_pixel_row(&mut self, x: u8, y : u8, rowval: u8);
+    fn write_pixel_row_xor(&mut self, x: u8, y : u8, rowval: u8) -> bool;
+}
+
+pub trait KeyboardInterface {
+    fn key_pressed(&self, key: u8);
+    fn wait_for_key(&self, key: u8);
 }
                  
 pub const PROG_START_ADDR: Addr = 0x200;
@@ -301,21 +313,16 @@ impl<'a> CPU<'a> {
 
     // Draw
     fn op_drw(&mut self, vx: RegNum, vy: RegNum, val: ByteVal) {
-        //INCOMPLETEx
         let x = self.vreg[vx];
         let y = self.vreg[vy];
-        let mut dx = 0;
-        let mut dy = 0;
+        
+        self.vreg[0xf] = 0;
         
         for i in 0..val {
-            self.display.toggle_pixel(x + dx, y + dy, self.mem.read_byte(self.ireg + i));
-            dx++;
-            if dx == 8 {
-                dx = 0;
-                dy++;
-            }
+            let rowval = self.mem.read_byte(self.ireg + i as Addr);
+            let cleared = self.display.write_pixel_row_xor(x, y, rowval);
+            if cleared { self.vreg[0xf] = 1; }
         }
-                
     }
 
     // Skip next instruction if key specified in reg is pressed

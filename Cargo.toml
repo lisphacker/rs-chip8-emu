@@ -4,3 +4,4 @@ version = "0.1.0"
 authors = ["Gautham Ganapathy <gauthamg@gmail.com>"]
 
 [dependencies]
+cursive = "0.9.0"

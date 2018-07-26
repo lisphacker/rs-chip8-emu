@@ -3,10 +3,9 @@ pub mod types;
 pub mod core;
 pub mod memory;
 pub mod display_buffer;
+pub mod keyboard;
 
-use chip8::core::CPU;
-use chip8::core::MemoryInterface;
-use chip8::core::DisplayInterface;
+use chip8::core::{CPU, MemoryInterface, DisplayInterface, KeyboardInterface};
 
 pub struct Chip8<'a> {
     cpu:     CPU<'a>
