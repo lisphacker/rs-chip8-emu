@@ -3,7 +3,6 @@ pub mod types;
 pub mod core;
 pub mod memory;
 pub mod display_buffer;
-pub mod keyboard;
 
 use chip8::core::{CPU, MemoryInterface, DisplayInterface, KeyboardInterface};
 
@@ -12,9 +11,11 @@ pub struct Chip8<'a> {
 }
 
 impl<'a> Chip8<'a> {
-    pub fn new(mem: &'a mut MemoryInterface, display: &'a mut DisplayInterface) -> Chip8<'a> {
+    pub fn new(mem: &'a mut MemoryInterface,
+               display: &'a mut DisplayInterface,
+               keyboard: &'a mut KeyboardInterface) -> Chip8<'a> {
         Chip8 {
-            cpu:     CPU::new(mem, display),
+            cpu:     CPU::new(mem, display, keyboard),
         }
     }
     

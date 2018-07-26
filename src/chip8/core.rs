@@ -25,36 +25,40 @@ pub trait DisplayInterface {
 }
 
 pub trait KeyboardInterface {
-    fn key_pressed(&self, key: u8);
+    fn key_pressed(&self, key: u8) -> bool;
     fn wait_for_key(&self, key: u8);
 }
                  
 pub const PROG_START_ADDR: Addr = 0x200;
 
 pub struct CPU<'a> {
-    pc:   Addr,
-    vreg: [u8; 16],
-    ireg: Addr,
-    dt:   u8,
-    st:   u8,
+    pc:    Addr,
+    vreg:  [u8; 16],
+    ireg:  Addr,
+    dt:    u8,
+    st:    u8,
     stack: Vec<Addr>,
         
-    mem:     &'a mut MemoryInterface,
-    display: &'a mut DisplayInterface
+    mem:      &'a mut MemoryInterface,
+    display:  &'a mut DisplayInterface,
+    keyboard: &'a mut KeyboardInterface
 }
 
 impl<'a> CPU<'a> {
-    pub fn new(mem: &'a mut MemoryInterface, display: &'a mut DisplayInterface) -> Self {
+    pub fn new(mem: &'a mut MemoryInterface,
+               display: &'a mut DisplayInterface,
+               keyboard: &'a mut KeyboardInterface) -> Self {
         CPU {
-            pc: PROG_START_ADDR,
-            vreg: [0; 16],
-            ireg: 0,
-            dt: 0,
-            st: 0,
+            pc:    PROG_START_ADDR,
+            vreg:  [0; 16],
+            ireg:  0,
+            dt:    0,
+            st:    0,
             stack: Vec::new(),
 
-            mem: mem,
-            display: display
+            mem:      mem,
+            display:  display,
+            keyboard: keyboard
         }
     }
 
@@ -327,12 +331,16 @@ impl<'a> CPU<'a> {
 
     // Skip next instruction if key specified in reg is pressed
     fn op_skp(&mut self, vx: RegNum) {
-        //TODO
+        if self.keyboard.key_pressed(self.vreg[vx]) {
+            self.incr_pc();
+        }
     }
 
     // Skip next instruction if key specified in reg is not pressed
     fn op_sknp(&mut self, vx: RegNum) {
-        //TODO
+        if !self.keyboard.key_pressed(self.vreg[vx]) {
+            self.incr_pc();
+        }
     }
 
     fn op_undef(&mut self) {

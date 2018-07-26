@@ -1,10 +1,14 @@
 
+extern crate cursive;
+
 mod chip8;
+mod backends;
 
 use chip8::Chip8;
 use chip8::memory::Memory;
 use chip8::display_buffer::DisplayBuffer;
 
+use backends::curses::Curses;
 
 fn main() {
     let mut mem = Memory::new();
@@ -15,7 +19,9 @@ fn main() {
         return;
     }
 
-    let mut chip8 = Chip8::new(&mut mem, &mut display);
+    let mut backend = Curses::new();
+    
+    let mut chip8 = Chip8::new(&mut mem, &mut display, &mut backend);
     
     loop {
         chip8.cycle();
