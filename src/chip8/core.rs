@@ -1,15 +1,12 @@
 
-use std::fs::File;
-use std::io::Read;
-use std::io::Result;
-
-type Addr = u16;
-type RegNum = u8;
-type ByteVal = u8;
+use chip8::types::Addr;
+use chip8::types::RegNum;
+use chip8::types::ByteVal;
 
 #[derive(Debug)]
-struct OpVal(u8, u8, u8, u8);
+pub struct OpVal(u8, u8, u8, u8);
 
+/*
 #[derive(Debug)]
 enum OpCode {
     ///// CHIP-8 opcodes /////
@@ -81,10 +78,20 @@ enum OpCode {
 
     ///// Chip-48 opcodes
 }
+ */
 
-const PROG_START_ADDR: usize = 0x200;
+pub trait MemoryInterface {
+    fn read_byte(&self, Addr) -> ByteVal;
+    fn write_byte(&mut self, Addr, ByteVal);
+}
 
-struct CPU {
+pub trait DisplayInterface {
+    fn clear(&self);
+}
+                 
+pub const PROG_START_ADDR: usize = 0x200;
+
+pub struct CPU {
     pc:   u16,
     vreg: [u8; 16],
     ireg: u16,
@@ -94,7 +101,7 @@ struct CPU {
 }
 
 impl CPU {
-    fn new() -> Self {
+    pub fn new() -> Self {
         CPU {
             pc: PROG_START_ADDR as u16,
             vreg: [0; 16],
@@ -110,7 +117,7 @@ impl CPU {
         self.pc += 2;
     }
 
-    fn fetch_op(&mut self, mem: &MemoryInterface) -> OpVal {
+    pub fn fetch_op(&mut self, mem: &MemoryInterface) -> OpVal {
         let b0 = mem.read_byte(self.pc);
         let b1 = mem.read_byte(self.pc + 1);
 
@@ -119,7 +126,9 @@ impl CPU {
         OpVal(b0 >> 4, b0 & 0xf, b1 >> 4, b1 & 0xf)
     }
     
-    fn decode_and_execute_op(&mut self, opval: OpVal, mem: &MemoryInterface) {
+    pub fn decode_and_execute_op(&mut self, opval: OpVal,
+                                 mem: &mut MemoryInterface,
+                                 display: &mut DisplayInterface) {
         let OpVal(n0, n1, n2, n3) = opval;
         let addr = ((n1 as Addr) << 8) | ((n2 as Addr) << 4) | (n3 as Addr);
         let x = n1 as RegNum;
@@ -128,19 +137,57 @@ impl CPU {
         let imm4 = n3 as ByteVal;
         
 
-        match n0 {
-            0x0 => match n1 {
-                0x0 if n2 == 0xe && n3 == 0x0 => self.op_cls(),
-                0x0 if n2 == 0xe && n3 == 0xe => self.op_ret(),
-                _                             => self.op_sys(addr)
-            }
-            _   => ()
-                
+        match (n0, n1, n2, n3) {
+            (0x0, 0x0, 0x0, 0x0) => self.op_undef(),
+            (0x0, 0x0, 0xe, 0xe) => self.op_ret(),
+            (0x0,   _,   _,   _) => self.op_sys(addr),
+            
+            (0x1,   _,   _,   _) => self.op_jp(addr),
+            (0x2,   _,   _,   _) => self.op_call(addr),
+            (0x3,   _,   _,   _) => self.op_sec(x, imm8),
+            (0x4,   _,   _,   _) => self.op_snec(x, imm8),
+            (0x5,   _,   _, 0x0) => self.op_se(x, y),
+            (0x6,   _,   _,   _) => self.op_ldc(x, imm8),
+            (0x7,   _,   _,   _) => self.op_addc(x, imm8),
+
+
+            (0x8,   _,   _, 0x0) => self.op_ld(x, y),
+            (0x8,   _,   _, 0x1) => self.op_or(x, y),
+            (0x8,   _,   _, 0x2) => self.op_and(x, y),
+            (0x8,   _,   _, 0x3) => self.op_xor(x, y),
+            (0x8,   _,   _, 0x4) => self.op_add(x, y),
+            (0x8,   _,   _, 0x5) => self.op_sub(x, y),
+            (0x8,   _,   _, 0x6) => self.op_shr(x),
+            (0x8,   _,   _, 0x7) => self.op_subn(x, y),
+            (0x8,   _,   _, 0xe) => self.op_shl(x),
+
+            (0x9,   _,   _, 0x0) => self.op_se(x, y),
+
+            (0xa,   _,   _,   _) => self.op_ldi(addr),
+            (0xb,   _,   _,   _) => self.op_jp_rel(addr),
+            (0xc,   _,   _,   _) => self.op_rnd(x, imm8),
+            (0xd,   _,   _,   _) => self.op_drw(x, y, imm4),
+            
+            (0xe,   _, 0x9, 0xe) => self.op_skp(x),
+            (0xe,   _, 0xa, 0x1) => self.op_sknp(x),
+
+            (0xf,   _, 0x0, 0x7) => self.op_lddt(x),
+            (0xf,   _, 0x0, 0xa) => self.op_ldtc(x),
+            (0xf,   _, 0x1, 0x5) => self.op_stdt(x),
+            (0xf,   _, 0x1, 0x8) => self.op_stst(x),
+            (0xf,   _, 0x1, 0xe) => self.op_addi(x),
+            (0xf,   _, 0x2, 0x9) => self.op_ldsprt(x),
+            (0xf,   _, 0x3, 0x3) => self.op_stbcd(x),
+            (0xf,   _, 0x5, 0x5) => self.op_stall(x),
+            (0xf,   _, 0x6, 0x5) => self.op_ldall(x),
+
+            (  _,   _,   _,   _) => self.op_undef()
         };
     }
 
     // Call RCA 1802 program at give address
     fn op_sys(&mut self, addr: Addr) {
+        eprintln!("RCA1802 calls are not supported!");
     }
 
     // Clear the display
@@ -204,14 +251,14 @@ impl CPU {
     }
 
     // Wait for key and place key in reg
-    fn op_ldtc(&mut self, vx: RegNum, key: ByteVal) {
+    fn op_ldtc(&mut self, vx: RegNum) {
     }
 
     // Load IREG with sprite address of character in vx
     fn op_ldsprt(&mut self, vx: RegNum) {
     }
 
-    // Store BCD representation of value in vx to [IREG] and [IREG+1]
+    // Store BCD representation of value in vx to [IREG], [IREG+1] and [IREG+2]
     fn op_stbcd(&mut self, vx: RegNum) {
     }
 
@@ -220,7 +267,7 @@ impl CPU {
     }
 
     //Store registers v0-vx to [i]
-    fn op_stall(&mut self, vs: RegNum) {
+    fn op_stall(&mut self, vx: RegNum) {
     }
 
     // vx <- vx | vy
@@ -250,7 +297,6 @@ impl CPU {
     // vx <- vx + vy
     fn op_add(&mut self, vx: RegNum, vy: RegNum) {
     }
-
     // IREG <- IREG + vx
     fn op_addi(&mut self, vx: RegNum) {
     }
@@ -279,7 +325,7 @@ impl CPU {
     fn op_sknp(&mut self, vx: RegNum) {
     }
 
-    fn op_(&mut self) {
+    fn op_undef(&mut self) {
     }
 
     /*
@@ -313,78 +359,3 @@ impl CPU {
     }
 }
 
-trait MemoryInterface {
-    fn read_byte(&self, Addr) -> ByteVal;
-    fn write_byte(&mut self, Addr, ByteVal);
-}
-                 
-struct Memory {
-    mem: Vec<u8>
-}
-
-impl Memory {
-    fn new(size: usize) -> Self {
-        Memory {
-            mem: vec![0; size]
-        }
-    }
-}
-
-impl MemoryInterface for Memory {
-    fn read_byte(&self, addr: Addr) -> ByteVal {
-        self.mem[addr as usize]
-    }
-    
-    fn write_byte(&mut self, addr: Addr, val: ByteVal) {
-        self.mem[addr as usize] = val;
-    }
-}
-    
-const MEM_SIZE: usize = 4096;
-
-
-pub struct Chip8 {
-    cpu: CPU,
-    mem: Memory
-}
-
-impl Chip8 {
-    pub fn new() -> Chip8 {
-        Chip8 {
-            cpu: CPU::new(),
-            mem: Memory::new(MEM_SIZE)
-        }
-    }
-    
-    pub fn load_file(&mut self, path: &str) -> Result<()> {
-        let mut f = File::open(path)?;
-        let mut byte_vec = Vec::new();
-
-        let read_bytes = f.read_to_end(&mut byte_vec)?;
-
-        let memlen = if read_bytes < MEM_SIZE - PROG_START_ADDR {
-            read_bytes
-        } else {
-            MEM_SIZE - PROG_START_ADDR
-        };
-
-        for i in 0..memlen {
-            self.mem.write_byte((PROG_START_ADDR + i) as u16, byte_vec[i]);
-        }
-        
-        Ok(())
-    }
-
-    pub fn cycle(&mut self) {
-        println!("Cycle start");
-        
-        let opval = self.cpu.fetch_op(&self.mem);
-
-        println!("OpVal: {:x?}", opval);
-
-        self.cpu.decode_and_execute_op(opval, &mut self.mem);
-
-        println!("Cycle end\n");
-    }
-
-}
