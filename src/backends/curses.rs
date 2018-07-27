@@ -16,6 +16,10 @@ impl Curses {
             siv: siv
         }
     }
+
+    pub fn step(&mut self) {
+        self.siv.step();
+    }
 }
 
 impl KeyboardInterface for Curses {

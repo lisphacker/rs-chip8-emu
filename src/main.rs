@@ -25,5 +25,6 @@ fn main() {
     
     loop {
         chip8.cycle();
+        backend.step();
     }
 }
