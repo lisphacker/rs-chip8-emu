@@ -1,7 +1,6 @@
 
-use chip8::types::Addr;
-use chip8::types::RegNum;
-use chip8::types::ByteVal;
+use std::sync::{Arc, Mutex};
+use chip8::types::{ Addr, ByteVal, RegNum };
 
 #[derive(Debug)]
 pub struct OpVal(u8, u8, u8, u8);
@@ -24,10 +23,14 @@ pub trait DisplayInterface {
     fn write_pixel_row_xor(&mut self, x: u8, y : u8, rowval: u8) -> bool;
 }
 
+pub type RcRefDisplayInterface = Arc<Mutex<DisplayInterface + Send>>;
+
 pub trait KeyboardInterface {
     fn key_pressed(&self, key: u8) -> bool;
     fn wait_for_key(&self, key: u8);
 }
+
+pub type RcRefKeyboardInterface = Arc<Mutex<KeyboardInterface + Send>>;
                  
 pub const PROG_START_ADDR: Addr = 0x200;
 
@@ -40,14 +43,14 @@ pub struct CPU<'a> {
     stack: Vec<Addr>,
         
     mem:      &'a mut MemoryInterface,
-    display:  &'a mut DisplayInterface,
-    keyboard: &'a mut KeyboardInterface
+    display:  &'a RcRefDisplayInterface,
+    keyboard: &'a RcRefKeyboardInterface
 }
 
 impl<'a> CPU<'a> {
     pub fn new(mem: &'a mut MemoryInterface,
-               display: &'a mut DisplayInterface,
-               keyboard: &'a mut KeyboardInterface) -> Self {
+               display: &'a RcRefDisplayInterface,
+               keyboard: &'a RcRefKeyboardInterface) -> Self {
         CPU {
             pc:    PROG_START_ADDR,
             vreg:  [0; 16],
@@ -144,7 +147,8 @@ impl<'a> CPU<'a> {
 
     // Clear the display
     fn op_cls(&mut self) {
-        self.display.clear();
+        let mut display = self.display.lock().unwrap();
+        (*display).clear();
     }
 
     // Return from subroutine
@@ -321,24 +325,28 @@ impl<'a> CPU<'a> {
         let y = self.vreg[vy];
         
         self.vreg[0xf] = 0;
+
+        let mut display = self.display.lock().unwrap();
         
         for i in 0..val {
             let rowval = self.mem.read_byte(self.ireg + i as Addr);
-            let cleared = self.display.write_pixel_row_xor(x, y, rowval);
+            let cleared = (*display).write_pixel_row_xor(x, y, rowval);
             if cleared { self.vreg[0xf] = 1; }
         }
     }
 
     // Skip next instruction if key specified in reg is pressed
     fn op_skp(&mut self, vx: RegNum) {
-        if self.keyboard.key_pressed(self.vreg[vx]) {
+        let keyboard = self.keyboard.lock().unwrap();
+        if (*keyboard).key_pressed(self.vreg[vx]) {
             self.incr_pc();
         }
     }
 
     // Skip next instruction if key specified in reg is not pressed
     fn op_sknp(&mut self, vx: RegNum) {
-        if !self.keyboard.key_pressed(self.vreg[vx]) {
+        let keyboard = self.keyboard.lock().unwrap();
+        if !(*keyboard).key_pressed(self.vreg[vx]) {
             self.incr_pc();
         }
     }

@@ -1,2 +1,2 @@
 
-pub mod curses;
+pub mod sdl;

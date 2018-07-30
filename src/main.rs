@@ -1,30 +1,53 @@
 
-extern crate cursive;
+extern crate sdl2;
+
+use std::thread;
+use std::sync::mpsc::{channel, Receiver};
+use std::sync::{Arc, Mutex};
 
 mod chip8;
 mod backends;
 
 use chip8::Chip8;
+use chip8::core::{RcRefKeyboardInterface, RcRefDisplayInterface};
 use chip8::memory::Memory;
 use chip8::display_buffer::DisplayBuffer;
 
-use backends::curses::Curses;
+use backends::sdl::SDL;
 
-fn main() {
+enum Msg {
+    Exit
+}
+
+fn simulation_thread(display: RcRefDisplayInterface, keyboard: RcRefKeyboardInterface, rx: Receiver<Msg>) {
     let mut mem = Memory::new();
-    let mut display = DisplayBuffer::new();
-    
     if mem.load_file("programs/games/TICTAC").is_err() {
         println!("Unable to load ROM");
         return;
     }
+    
+    let mut chip8 = Chip8::new(&mut mem, &display, &keyboard);
 
-    let mut backend = Curses::new();
-    
-    let mut chip8 = Chip8::new(&mut mem, &mut display, &mut backend);
-    
     loop {
-        chip8.cycle();
-        backend.step();
+        //chip8.cycle();
+        match rx.try_recv() {
+            Ok(Msg::Exit) => break,
+            _             => {}
+        }
     }
+}
+
+fn main() {
+    let mut backend = SDL::new();
+    let keyboard: RcRefKeyboardInterface = backend.iostate.clone();
+    let display: RcRefDisplayInterface = backend.iostate.clone();
+    
+    let (tx, rx) = channel();
+
+    let sim_thread = thread::spawn(move || { simulation_thread(display, keyboard, rx); });
+
+    backend.run();
+
+    tx.send(Msg::Exit);
+    sim_thread.join();
 }
