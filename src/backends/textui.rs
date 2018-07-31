@@ -4,13 +4,8 @@ use std::thread;
 
 use std::time::Duration;
 
-use sdl2;
-use sdl2::EventPump;
-use sdl2::render::Canvas;
-use sdl2::video::Window;
-use sdl2::pixels::Color;
-use sdl2::event::Event;
-use sdl2::keyboard::Keycode;
+use tui::Terminal;
+use tui::backend::RawBackend;
 
 use backends::Backend;
 use chip8::core::{KeyboardInterface, DisplayInterface};
@@ -64,6 +59,9 @@ pub struct TextUI {
 
 impl TextUI {
     pub fn new() -> Self {
+        let backend = RawBackend::new().unwrap();
+        let mut terminal = Terminal::new(backend).unwrap();
+        
         TextUI {
             iostate: Arc::new(Mutex::new(IOState {
                 key_pressed: [false; 16]
@@ -86,5 +84,6 @@ impl Backend for TextUI {
     }
 
     fn run(&mut self) {
+        loop{}
     }
 }
