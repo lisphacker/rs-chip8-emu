@@ -1,5 +1,6 @@
 
 extern crate sdl2;
+extern crate tui;
 
 use std::thread;
 use std::sync::mpsc::{channel, Receiver};
@@ -12,8 +13,6 @@ use chip8::Chip8;
 use chip8::core::{RcRefKeyboardInterface, RcRefDisplayInterface};
 use chip8::memory::Memory;
 use chip8::display_buffer::DisplayBuffer;
-
-use backends::sdl::SDL;
 
 enum Msg {
     Exit
@@ -38,9 +37,11 @@ fn simulation_thread(display: RcRefDisplayInterface, keyboard: RcRefKeyboardInte
 }
 
 fn main() {
-    let mut backend = SDL::new();
-    let keyboard: RcRefKeyboardInterface = backend.iostate.clone();
-    let display: RcRefDisplayInterface = backend.iostate.clone();
+    let mut ref_backend = backends::get_backend(backends::BackendType::TUI);
+    let mut backend = ref_backend.as_mut();
+    
+    let keyboard: RcRefKeyboardInterface = backend.get_keyboard_interface();
+    let display: RcRefDisplayInterface = backend.get_display_interface();
     
     let (tx, rx) = channel();
 

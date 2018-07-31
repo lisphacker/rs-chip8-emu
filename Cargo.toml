@@ -5,3 +5,4 @@ authors = ["Gautham Ganapathy <gauthamg@gmail.com>"]
 
 [dependencies]
 sdl2 = "*"
+tui = "*"

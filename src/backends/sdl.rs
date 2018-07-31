@@ -12,7 +12,9 @@ use sdl2::pixels::Color;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 
+use backends::Backend;
 use chip8::core::{KeyboardInterface, DisplayInterface};
+use chip8::core::{RcRefKeyboardInterface, RcRefDisplayInterface};
 
 pub struct IOState {
     key_pressed: [bool; 16]
@@ -89,28 +91,6 @@ impl SDL {
         }
     }
 
-    pub fn run(&mut self) {
-        'running: loop {
-            let iostate = &self.iostate;
-            
-            for event in self.event_pump.poll_iter() {
-                match event {
-                    Event::Quit {..} | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
-                        break 'running;
-                    },
-                    Event::KeyDown { keycode: Some(keycode), .. } => {
-                        SDL::process_keycode(keycode, iostate, true);
-                    }
-                    Event::KeyUp { keycode: Some(keycode), .. } => {
-                        SDL::process_keycode(keycode, iostate, false);
-                    }
-                    _ => {}
-                }
-            }
-            thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
-        }
-    }
-
     fn process_keycode(key: Keycode, iostate: &RcRefIOState, key_state: bool) {
         let mut io = iostate.lock().unwrap();
         
@@ -137,3 +117,35 @@ impl SDL {
     }
 }
 
+
+impl Backend for SDL {
+    fn get_keyboard_interface(&self) -> RcRefKeyboardInterface {
+        self.iostate.clone()
+    }
+    
+    fn get_display_interface(&self) -> RcRefDisplayInterface {
+        self.iostate.clone()
+    }
+
+    fn run(&mut self) {
+        'running: loop {
+            let iostate = &self.iostate;
+            
+            for event in self.event_pump.poll_iter() {
+                match event {
+                    Event::Quit {..} | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
+                        break 'running;
+                    },
+                    Event::KeyDown { keycode: Some(keycode), .. } => {
+                        SDL::process_keycode(keycode, iostate, true);
+                    }
+                    Event::KeyUp { keycode: Some(keycode), .. } => {
+                        SDL::process_keycode(keycode, iostate, false);
+                    }
+                    _ => {}
+                }
+            }
+            thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
+        }
+    }
+}
