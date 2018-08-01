@@ -62,12 +62,12 @@ impl DisplayInterface for IOState {
 
     fn write_pixel_row(&mut self, x: u8, y : u8, rowval: u8) {
         self.display_changed = true;
-        self.display_buffer.write_pixel(x, y, rowval);
+        self.display_buffer.write_pixel_row(x, y, rowval);
     }
     
     fn write_pixel_row_xor(&mut self, x: u8, y : u8, rowval: u8) -> bool {
         self.display_changed = true;
-        self.display_buffer.write_pixel_xor(x, y, rowval)
+        self.display_buffer.write_pixel_row_xor(x, y, rowval)
     }
 }
 
@@ -158,10 +158,11 @@ impl SDL {
         for y in 0..sz.1 {
             for x in 0..sz.0 {
                 if io.read_pixel(x as u8, y as u8) != 0 {
+                    //eprintln!("Setting pixel {}x{}", x, y);
                     canvas.fill_rect(Rect::new((x * PIXEL_WIDTH) as i32,
                                                (y * PIXEL_HEIGHT) as i32,
                                                PIXEL_WIDTH as u32,
-                                               PIXEL_HEIGHT as u32)).expect("canvas.fill_rectfailed");
+                                               PIXEL_HEIGHT as u32)).expect("canvas.fill_rect failed");
                 }
             }
         }
@@ -182,7 +183,7 @@ impl Backend for SDL {
 
     fn run(&mut self) {
         'running: loop {
-            let iostate = &self.iostate;
+            let mut iostate = &self.iostate;
             let mut canvas = &mut self.canvas;
             
             for event in self.event_pump.poll_iter() {
@@ -192,10 +193,14 @@ impl Backend for SDL {
                     },
                     Event::KeyDown { keycode: Some(keycode), .. } => {
                         SDL::process_keycode(keycode, iostate, true);
-                    }
+                    },
                     Event::KeyUp { keycode: Some(keycode), .. } => {
                         SDL::process_keycode(keycode, iostate, false);
-                    }
+                    },
+                    Event::Window {..} => {
+                        let mut io = iostate.lock().unwrap();
+                        io.display_changed = true;
+                    },
                     _ => {}
                 }
             }

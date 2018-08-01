@@ -39,7 +39,8 @@ impl DisplayInterface for DisplayBuffer {
         let off = y as usize * WIDTH + x as usize;
         let val = if val == 0 { 0 } else { 1 };
         let cleared = self.mem[off] == 1 && val == 1;
-        self.mem[off] &= val;
+        self.mem[off] ^= val;
+        println!("Mem write: {} {} {}", x, y, self.mem[off]);
         cleared
     }
 
@@ -52,8 +53,10 @@ impl DisplayInterface for DisplayBuffer {
     fn write_pixel_row_xor(&mut self, x: u8, y : u8, rowval: u8) -> bool {
         let mut cleared = false;
         for i in 0..8 {
-            let pixel_cleared = self.write_pixel_xor(x + i, y, rowval >> (7 - i));
+            println!("loop start: {}", i);
+            let pixel_cleared = self.write_pixel_xor(x + i, y, (rowval >> (7 - i)) & 1);
             cleared = cleared || pixel_cleared;
+            println!("loop end:   {}", i);
         }
         cleared
     }

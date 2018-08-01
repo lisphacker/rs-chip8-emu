@@ -65,6 +65,19 @@ impl<'a> CPU<'a> {
         }
     }
 
+    pub fn dump_reg(&self) {
+        print!("V:[");
+        for i in 0..16 {
+            print!("{}:{:x?} ", i, self.vreg[i as usize]);
+        }
+        print!("] ");
+        
+        print!("I:{:x?},{} ", self.ireg, self.ireg);
+
+        println!("");
+        
+    }
+
     fn set_pc(&mut self, addr: Addr) {
         self.pc = addr;
     }
@@ -73,13 +86,14 @@ impl<'a> CPU<'a> {
         self.pc += 2;
     }
 
-    pub fn fetch_op(&mut self) -> OpVal {
+    pub fn fetch_op(&mut self) -> (OpVal, Addr) {
         let b0 = self.mem.read_byte(self.pc);
         let b1 = self.mem.read_byte(self.pc + 1);
 
+        let pc = self.pc;
         self.incr_pc();
         
-        OpVal(b0 >> 4, b0 & 0xf, b1 >> 4, b1 & 0xf)
+        (OpVal(b0 >> 4, b0 & 0xf, b1 >> 4, b1 & 0xf), pc)
     }
     
     pub fn decode_and_execute_op(&mut self, opval: OpVal) {
@@ -235,8 +249,19 @@ impl<'a> CPU<'a> {
 
     // Wait for key and place key in reg
     fn op_ldtc(&mut self, vx: RegNum) {
+        /*
         let keyboard = self.keyboard.lock().unwrap();
         self.vreg[vx] = keyboard.wait_for_key();
+         */
+        'running: loop {
+            let keyboard = self.keyboard.lock().unwrap();
+            for i in 0..16 {
+                if keyboard.key_pressed(i) {
+                    self.vreg[vx] = i;
+                    break 'running;
+                }
+            }
+        }
     }
 
     // Load IREG with sprite address of character in vx
@@ -327,14 +352,16 @@ impl<'a> CPU<'a> {
     fn op_drw(&mut self, vx: RegNum, vy: RegNum, val: ByteVal) {
         let x = self.vreg[vx];
         let y = self.vreg[vy];
-        
+
+        println!("DRW {} {} {}", x, y, val);
         self.vreg[0xf] = 0;
 
         let mut display = self.display.lock().unwrap();
         
         for i in 0..val {
             let rowval = self.mem.read_byte(self.ireg + i as Addr);
-            let cleared = (*display).write_pixel_row_xor(x, y, rowval);
+            println!("  rowval: {}", rowval);
+            let cleared = (*display).write_pixel_row_xor(x, y + i, rowval);
             if cleared { self.vreg[0xf] = 1; }
         }
     }

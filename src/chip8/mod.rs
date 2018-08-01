@@ -5,7 +5,7 @@ pub mod memory;
 pub mod display_buffer;
 
 use std::time::{Instant, Duration};
-
+use std::thread;
 use chip8::core::{CPU, MemoryInterface, RcRefDisplayInterface, RcRefKeyboardInterface};
 
 pub struct Chip8<'a> {
@@ -29,10 +29,11 @@ impl<'a> Chip8<'a> {
     pub fn cycle(&mut self) {
         //println!("Cycle start");
         
-        let opval = self.cpu.fetch_op();
+        let (opval, pc) = self.cpu.fetch_op();
 
-        //println!("OpVal: {:x?}", opval);
-
+        println!("{:x?} {:x?}", pc, opval);
+        self.cpu.dump_reg();
+        
         self.cpu.decode_and_execute_op(opval);
 
         let time = Instant::now();
@@ -42,6 +43,8 @@ impl<'a> Chip8<'a> {
         }
 
         //println!("Cycle end\n");
+        //thread::sleep(Duration::from_millis(500));
+        
     }
 
 }
