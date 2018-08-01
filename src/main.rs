@@ -4,7 +4,6 @@ extern crate tui;
 
 use std::thread;
 use std::sync::mpsc::{channel, Receiver};
-use std::sync::{Arc, Mutex};
 
 mod chip8;
 mod backends;
@@ -37,7 +36,7 @@ fn simulation_thread(display: RcRefDisplayInterface, keyboard: RcRefKeyboardInte
 }
 
 fn main() {
-    let mut ref_backend = backends::get_backend(backends::BackendType::TUI);
+    let mut ref_backend = backends::get_backend(backends::BackendType::SDL);
     let mut backend = ref_backend.as_mut();
     
     let keyboard: RcRefKeyboardInterface = backend.get_keyboard_interface();
@@ -49,6 +48,6 @@ fn main() {
 
     backend.run();
 
-    tx.send(Msg::Exit);
-    sim_thread.join();
+    tx.send(Msg::Exit).expect("Unable to send exit message");
+    sim_thread.join().expect("Failed to wait for simulation thread");
 }

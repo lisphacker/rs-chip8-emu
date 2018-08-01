@@ -31,7 +31,7 @@ impl KeyboardInterface for IOState {
 }
 
 impl DisplayInterface for IOState {
-    fn dimensions(&self) -> (u8, u8) {
+    fn dimensions(&self) -> (usize, usize) {
         (0, 0)
     }
     

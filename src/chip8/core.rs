@@ -11,7 +11,7 @@ pub trait MemoryInterface {
 }
 
 pub trait DisplayInterface {
-    fn dimensions(&self) -> (u8, u8);
+    fn dimensions(&self) -> (usize, usize);
     fn clear(&mut self);
     
     fn read_pixel(&self, x: u8, y: u8) -> u8;

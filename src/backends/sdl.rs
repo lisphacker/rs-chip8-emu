@@ -11,13 +11,17 @@ use sdl2::video::Window;
 use sdl2::pixels::Color;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
+use sdl2::rect::Rect;
 
 use backends::Backend;
 use chip8::core::{KeyboardInterface, DisplayInterface};
 use chip8::core::{RcRefKeyboardInterface, RcRefDisplayInterface};
+use chip8::display_buffer::DisplayBuffer;
 
 pub struct IOState {
-    key_pressed: [bool; 16]
+    key_pressed: [bool; 16],
+    display_buffer: DisplayBuffer,
+    display_changed: bool
 }
 
 type RcRefIOState = Arc<Mutex<IOState>>;
@@ -32,29 +36,37 @@ impl KeyboardInterface for IOState {
 }
 
 impl DisplayInterface for IOState {
-    fn dimensions(&self) -> (u8, u8) {
-        (0, 0)
+    fn dimensions(&self) -> (usize, usize) {
+        self.display_buffer.dimensions()
     }
     
     fn clear(&mut self) {
+        self.display_changed = true;
+        self.display_buffer.clear();
     }
     
     fn read_pixel(&self, x: u8, y: u8) -> u8 {
-        0
+        self.display_buffer.read_pixel(x, y)
     }
     
     fn write_pixel(&mut self, x: u8, y: u8, val: u8) {
+        self.display_changed = true;
+        self.display_buffer.write_pixel(x, y, val);
     }
     
     fn write_pixel_xor(&mut self, x: u8, y: u8, val: u8) -> bool {
-        false
+        self.display_changed = true;
+        self.display_buffer.write_pixel_xor(x, y, val)
     }
 
     fn write_pixel_row(&mut self, x: u8, y : u8, rowval: u8) {
+        self.display_changed = true;
+        self.display_buffer.write_pixel(x, y, rowval);
     }
     
     fn write_pixel_row_xor(&mut self, x: u8, y : u8, rowval: u8) -> bool {
-        false
+        self.display_changed = true;
+        self.display_buffer.write_pixel_xor(x, y, rowval)
     }
 }
 
@@ -64,12 +76,20 @@ pub struct SDL {
     pub iostate: RcRefIOState
 }
 
+const PIXEL_WIDTH: usize = 10;
+const PIXEL_HEIGHT: usize = 10;
+
 impl SDL {
     pub fn new() -> Self {
         let sdl_context = sdl2::init().unwrap();
         let video_subsystem = sdl_context.video().unwrap();
 
-        let window = video_subsystem.window("rust-sdl2 demo: Video", 800, 600)
+        let display_buffer = DisplayBuffer::new();
+        let sz = display_buffer.dimensions();
+        
+        let window = video_subsystem.window("rust-sdl2 demo: Video",
+                                            (sz.0 * PIXEL_WIDTH) as u32,
+                                            (sz.1 * PIXEL_HEIGHT) as u32)
             .position_centered()
             .opengl()
             .build()
@@ -86,7 +106,9 @@ impl SDL {
             canvas: canvas,
             event_pump: event_pump,
             iostate: Arc::new(Mutex::new(IOState {
-                key_pressed: [false; 16]
+                key_pressed: [false; 16],
+                display_buffer: display_buffer,
+                display_changed: true
             }))
         }
     }
@@ -115,6 +137,33 @@ impl SDL {
                 
         };
     }
+
+    fn update_display(iostate: &RcRefIOState, canvas: &mut Canvas<Window>) {
+        let mut io = iostate.lock().unwrap();
+
+        if !io.display_changed {
+            return;
+        }
+
+        let sz = io.dimensions();
+
+        canvas.set_draw_color(Color::RGB(0, 0, 0));
+        canvas.clear();
+
+        canvas.set_draw_color(Color::RGB(0, 128, 0));
+
+        for y in 0..sz.1 {
+            for x in 0..sz.0 {
+                if io.read_pixel(x as u8, y as u8) != 0 {
+                    canvas.fill_rect(Rect::new((x * PIXEL_WIDTH) as i32,
+                                               (y * PIXEL_HEIGHT) as i32,
+                                               PIXEL_WIDTH as u32,
+                                               PIXEL_HEIGHT as u32)).expect("canvas.fill_rectfailed");
+                }
+            }
+        }
+        canvas.present();
+    }
 }
 
 
@@ -130,6 +179,7 @@ impl Backend for SDL {
     fn run(&mut self) {
         'running: loop {
             let iostate = &self.iostate;
+            let mut canvas = &mut self.canvas;
             
             for event in self.event_pump.poll_iter() {
                 match event {
@@ -145,7 +195,11 @@ impl Backend for SDL {
                     _ => {}
                 }
             }
+
+            SDL::update_display(iostate, &mut canvas);
+
             thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
         }
     }
 }
+

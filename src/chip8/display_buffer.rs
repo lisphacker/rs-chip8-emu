@@ -1,7 +1,4 @@
 
-use chip8::types::Addr;
-use chip8::types::ByteVal;
-
 use chip8::core::DisplayInterface;
 
 pub const WIDTH: usize = 64;
@@ -20,8 +17,8 @@ impl DisplayBuffer {
 }
 
 impl DisplayInterface for DisplayBuffer {
-    fn dimensions(&self) -> (u8, u8) {
-        (WIDTH as u8, HEIGHT as u8)
+    fn dimensions(&self) -> (usize, usize) {
+        (WIDTH, HEIGHT)
     }
     
     fn clear(&mut self) {
