@@ -26,7 +26,8 @@ impl KeyboardInterface for IOState {
         self.key_pressed[key as usize]
     }
     
-    fn wait_for_key(&self, key: u8) {
+    fn wait_for_key(&self) -> u8 {
+        0
     }
 }
 

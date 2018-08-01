@@ -27,11 +27,11 @@ impl<'a> Chip8<'a> {
     
 
     pub fn cycle(&mut self) {
-        println!("Cycle start");
+        //println!("Cycle start");
         
         let opval = self.cpu.fetch_op();
 
-        println!("OpVal: {:x?}", opval);
+        //println!("OpVal: {:x?}", opval);
 
         self.cpu.decode_and_execute_op(opval);
 
@@ -41,7 +41,7 @@ impl<'a> Chip8<'a> {
             self.last_tick_time = time;
         }
 
-        println!("Cycle end\n");
+        //println!("Cycle end\n");
     }
 
 }

@@ -27,7 +27,7 @@ pub type RcRefDisplayInterface = Arc<Mutex<DisplayInterface + Send>>;
 
 pub trait KeyboardInterface {
     fn key_pressed(&self, key: u8) -> bool;
-    fn wait_for_key(&self, key: u8);
+    fn wait_for_key(&self) -> u8;
 }
 
 pub type RcRefKeyboardInterface = Arc<Mutex<KeyboardInterface + Send>>;
@@ -235,17 +235,21 @@ impl<'a> CPU<'a> {
 
     // Wait for key and place key in reg
     fn op_ldtc(&mut self, vx: RegNum) {
-        //TODO
+        let keyboard = self.keyboard.lock().unwrap();
+        self.vreg[vx] = keyboard.wait_for_key();
     }
 
     // Load IREG with sprite address of character in vx
     fn op_ldsprt(&mut self, vx: RegNum) {
-        //TODO
+        self.ireg = self.vreg[vx] as Addr * 5;
     }
 
     // Store BCD representation of value in vx to [IREG], [IREG+1] and [IREG+2]
     fn op_stbcd(&mut self, vx: RegNum) {
-        //TODO
+        let v = self.vreg[vx];
+        self.mem.write_byte(self.ireg, v / 100);
+        self.mem.write_byte(self.ireg + 1, (v / 10) % 10);
+        self.mem.write_byte(self.ireg + 2, v % 10);
     }
 
     // Load registers v0-vx from [i]
@@ -316,7 +320,7 @@ impl<'a> CPU<'a> {
 
     // vx <- rnd_val & val
     fn op_rnd(&mut self, vx: RegNum, val: ByteVal) {
-        //TODO
+        eprintln!("rnd not implemented");
     }
 
     // Draw

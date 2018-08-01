@@ -31,7 +31,8 @@ impl KeyboardInterface for IOState {
         self.key_pressed[key as usize]
     }
     
-    fn wait_for_key(&self, key: u8) {
+    fn wait_for_key(&self) -> u8 {
+        0
     }
 }
 
@@ -145,6 +146,8 @@ impl SDL {
             return;
         }
 
+        eprintln!("Updating display");
+
         let sz = io.dimensions();
 
         canvas.set_draw_color(Color::RGB(0, 0, 0));
@@ -163,6 +166,7 @@ impl SDL {
             }
         }
         canvas.present();
+        io.display_changed = false;
     }
 }
 
