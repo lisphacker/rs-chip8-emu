@@ -4,8 +4,8 @@ use chip8::types::ByteVal;
 
 use chip8::core::DisplayInterface;
 
-const WIDTH: usize = 64;
-const HEIGHT: usize = 32;
+pub const WIDTH: usize = 64;
+pub const HEIGHT: usize = 32;
 
 pub struct DisplayBuffer {
     mem: [u8; WIDTH * HEIGHT]
