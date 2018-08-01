@@ -354,5 +354,15 @@ impl<'a> CPU<'a> {
     fn op_undef(&mut self) {
         eprintln!("Unknown instruction!");
     }
+
+    pub fn decrement_timers(&mut self) {
+        if self.dt > 0 {
+            self.dt -= 1;
+        }
+
+        if self.st > 0 {
+            self.st -= 1;
+        }
+    }
 }
 

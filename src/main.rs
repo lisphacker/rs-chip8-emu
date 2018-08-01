@@ -1,9 +1,11 @@
 
 extern crate sdl2;
 extern crate tui;
+extern crate clap;
 
 use std::thread;
 use std::sync::mpsc::{channel, Receiver};
+use clap::{Arg, App};
 
 mod chip8;
 mod backends;
@@ -27,7 +29,7 @@ fn simulation_thread(display: RcRefDisplayInterface, keyboard: RcRefKeyboardInte
     let mut chip8 = Chip8::new(&mut mem, &display, &keyboard);
 
     loop {
-        //chip8.cycle();
+        chip8.cycle();
         match rx.try_recv() {
             Ok(Msg::Exit) => break,
             _             => {}
@@ -35,8 +37,44 @@ fn simulation_thread(display: RcRefDisplayInterface, keyboard: RcRefKeyboardInte
     }
 }
 
+struct Opts {
+    backend: backends::BackendType,
+    rom_file: String
+}
+
+fn parse_args() -> Opts {
+    let matches = App::new("rs-chip8-emu")
+        .version("0.1.0")
+        .author("Gautham Ganapathy <gauthamg@gmail.com>")
+        .about("CHIP-8 simulator")
+        .arg(Arg::with_name("backend")
+             .short("b")
+             .long("backend")
+             .value_name("BACKEND")
+             .help("Select a backend")
+             .takes_value(true)
+             .possible_value("sdl")
+             .possible_value("text")
+             .default_value("sdl"))
+        .arg(Arg::with_name("INPUT")
+             .help("Sets the input file to use")
+             .required(true)
+             .index(1)
+             .default_value("programs/games/TICTAC"))
+        .get_matches();
+    Opts {
+        backend: if matches.value_of("backend").expect("Unknown backend") == "sdl" {
+            backends::BackendType::SDL
+        } else {
+            backends::BackendType::TUI
+        },
+        rom_file: matches.value_of("INPUT").unwrap().into()
+    }
+}
+
 fn main() {
-    let mut ref_backend = backends::get_backend(backends::BackendType::SDL);
+    let opts = parse_args();
+    let mut ref_backend = backends::get_backend(opts.backend);
     let mut backend = ref_backend.as_mut();
     
     let keyboard: RcRefKeyboardInterface = backend.get_keyboard_interface();
