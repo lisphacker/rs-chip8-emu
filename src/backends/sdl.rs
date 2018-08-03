@@ -14,6 +14,7 @@ use sdl2::keyboard::Keycode;
 use sdl2::rect::Rect;
 
 use backends::Backend;
+use chip8::types::ByteVal;
 use chip8::core::{KeyboardInterface, DisplayInterface};
 use chip8::core::{RcRefKeyboardInterface, RcRefDisplayInterface};
 use chip8::display_buffer::DisplayBuffer;
@@ -27,11 +28,11 @@ pub struct IOState {
 type RcRefIOState = Arc<Mutex<IOState>>;
 
 impl KeyboardInterface for IOState {
-    fn key_pressed(&self, key: u8) -> bool {
+    fn key_pressed(&self, key: ByteVal) -> bool {
         self.key_pressed[key as usize]
     }
     
-    fn wait_for_key(&self) -> u8 {
+    fn wait_for_key(&self) -> ByteVal {
         0
     }
 }
@@ -46,26 +47,26 @@ impl DisplayInterface for IOState {
         self.display_buffer.clear();
     }
     
-    fn read_pixel(&self, x: u8, y: u8) -> u8 {
+    fn read_pixel(&self, x: ByteVal, y: ByteVal) -> ByteVal {
         self.display_buffer.read_pixel(x, y)
     }
     
-    fn write_pixel(&mut self, x: u8, y: u8, val: u8) {
+    fn write_pixel(&mut self, x: ByteVal, y: ByteVal, val: ByteVal) {
         self.display_changed = true;
         self.display_buffer.write_pixel(x, y, val);
     }
     
-    fn write_pixel_xor(&mut self, x: u8, y: u8, val: u8) -> bool {
+    fn write_pixel_xor(&mut self, x: ByteVal, y: ByteVal, val: ByteVal) -> bool {
         self.display_changed = true;
         self.display_buffer.write_pixel_xor(x, y, val)
     }
 
-    fn write_pixel_row(&mut self, x: u8, y : u8, rowval: u8) {
+    fn write_pixel_row(&mut self, x: ByteVal, y : ByteVal, rowval: ByteVal) {
         self.display_changed = true;
         self.display_buffer.write_pixel_row(x, y, rowval);
     }
     
-    fn write_pixel_row_xor(&mut self, x: u8, y : u8, rowval: u8) -> bool {
+    fn write_pixel_row_xor(&mut self, x: ByteVal, y : ByteVal, rowval: ByteVal) -> bool {
         self.display_changed = true;
         self.display_buffer.write_pixel_row_xor(x, y, rowval)
     }
@@ -157,7 +158,7 @@ impl SDL {
 
         for y in 0..sz.1 {
             for x in 0..sz.0 {
-                if io.read_pixel(x as u8, y as u8) != 0 {
+                if io.read_pixel(x as ByteVal, y as ByteVal) != 0 {
                     //eprintln!("Setting pixel {}x{}", x, y);
                     canvas.fill_rect(Rect::new((x * PIXEL_WIDTH) as i32,
                                                (y * PIXEL_HEIGHT) as i32,

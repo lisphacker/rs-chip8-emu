@@ -19,9 +19,9 @@ enum Msg {
     Exit
 }
 
-fn simulation_thread(display: RcRefDisplayInterface, keyboard: RcRefKeyboardInterface, rx: Receiver<Msg>) {
+fn simulation_thread(display: RcRefDisplayInterface, keyboard: RcRefKeyboardInterface, rx: Receiver<Msg>, file: String) {
     let mut mem = Memory::new();
-    if mem.load_file("programs/games/TICTAC").is_err() {
+    if mem.load_file(&file).is_err() {
         println!("Unable to load ROM");
         return;
     }
@@ -82,7 +82,7 @@ fn main() {
     
     let (tx, rx) = channel();
 
-    let sim_thread = thread::spawn(move || { simulation_thread(display, keyboard, rx); });
+    let sim_thread = thread::spawn(move || { simulation_thread(display, keyboard, rx, opts.rom_file); });
 
     backend.run();
 

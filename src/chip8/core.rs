@@ -1,9 +1,9 @@
 
 use std::sync::{Arc, Mutex};
-use chip8::types::{ Addr, ByteVal, RegNum };
+use chip8::types::{Addr, ByteVal, RegNum, TimerVal};
 
 #[derive(Debug)]
-pub struct OpVal(u8, u8, u8, u8);
+pub struct OpVal(ByteVal, ByteVal, ByteVal, ByteVal);
 
 pub trait MemoryInterface {
     fn read_byte(&self, Addr) -> ByteVal;
@@ -14,20 +14,20 @@ pub trait DisplayInterface {
     fn dimensions(&self) -> (usize, usize);
     fn clear(&mut self);
     
-    fn read_pixel(&self, x: u8, y: u8) -> u8;
+    fn read_pixel(&self, x: ByteVal, y: ByteVal) -> ByteVal;
     
-    fn write_pixel(&mut self, x: u8, y: u8, val: u8);
-    fn write_pixel_xor(&mut self, x: u8, y: u8, val: u8) -> bool;
+    fn write_pixel(&mut self, x: ByteVal, y: ByteVal, val: ByteVal);
+    fn write_pixel_xor(&mut self, x: ByteVal, y: ByteVal, val: ByteVal) -> bool;
 
-    fn write_pixel_row(&mut self, x: u8, y : u8, rowval: u8);
-    fn write_pixel_row_xor(&mut self, x: u8, y : u8, rowval: u8) -> bool;
+    fn write_pixel_row(&mut self, x: ByteVal, y : ByteVal, rowval: ByteVal);
+    fn write_pixel_row_xor(&mut self, x: ByteVal, y : ByteVal, rowval: ByteVal) -> bool;
 }
 
 pub type RcRefDisplayInterface = Arc<Mutex<DisplayInterface + Send>>;
 
 pub trait KeyboardInterface {
-    fn key_pressed(&self, key: u8) -> bool;
-    fn wait_for_key(&self) -> u8;
+    fn key_pressed(&self, key: ByteVal) -> bool;
+    fn wait_for_key(&self) -> ByteVal;
 }
 
 pub type RcRefKeyboardInterface = Arc<Mutex<KeyboardInterface + Send>>;
@@ -36,10 +36,10 @@ pub const PROG_START_ADDR: Addr = 0x200;
 
 pub struct CPU<'a> {
     pc:    Addr,
-    vreg:  [u8; 16],
+    vreg:  [ByteVal; 16],
     ireg:  Addr,
-    dt:    u8,
-    st:    u8,
+    dt:    TimerVal,
+    st:    TimerVal,
     stack: Vec<Addr>,
         
     mem:      &'a mut MemoryInterface,
@@ -234,17 +234,17 @@ impl<'a> CPU<'a> {
 
     // Load register from delay timer
     fn op_lddt(&mut self, vx: RegNum) {
-        self.vreg[vx] = self.dt;
+        self.vreg[vx] = self.dt as ByteVal;
     }
 
     // Store register into delay timer
     fn op_stdt(&mut self, vx: RegNum) {
-        self.dt = self.vreg[vx];
+        self.dt = self.vreg[vx] as TimerVal;
     }
 
     // Store register into sound timer
     fn op_stst(&mut self, vx: RegNum) {
-        self.st = self.vreg[vx];
+        self.st = self.vreg[vx] as TimerVal;
     }
 
     // Wait for key and place key in reg
@@ -257,7 +257,7 @@ impl<'a> CPU<'a> {
             let keyboard = self.keyboard.lock().unwrap();
             for i in 0..16 {
                 if keyboard.key_pressed(i) {
-                    self.vreg[vx] = i;
+                    self.vreg[vx] = i as ByteVal;
                     break 'running;
                 }
             }
@@ -320,7 +320,9 @@ impl<'a> CPU<'a> {
 
     // vx <- vx + val
     fn op_addc(&mut self, vx: RegNum, val: ByteVal) {
-        self.vreg[vx] += val;
+        //self.vreg[vx] += val;
+        // Avoid overflow
+        self.vreg[vx] = (self.vreg[vx] as u16 + val as u16) as u8;
     }
 
     // vx <- vx + vy
@@ -353,14 +355,12 @@ impl<'a> CPU<'a> {
         let x = self.vreg[vx];
         let y = self.vreg[vy];
 
-        println!("DRW {} {} {}", x, y, val);
         self.vreg[0xf] = 0;
 
         let mut display = self.display.lock().unwrap();
         
         for i in 0..val {
             let rowval = self.mem.read_byte(self.ireg + i as Addr);
-            println!("  rowval: {}", rowval);
             let cleared = (*display).write_pixel_row_xor(x, y + i, rowval);
             if cleared { self.vreg[0xf] = 1; }
         }

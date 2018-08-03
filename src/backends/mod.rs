@@ -4,6 +4,8 @@ pub mod textui;
 
 use chip8::core::{RcRefKeyboardInterface, RcRefDisplayInterface};
 
+#[derive(Clone)]
+#[derive(Copy)]
 pub enum BackendType {
     TUI,
     SDL

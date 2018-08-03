@@ -11,6 +11,7 @@ use tui::widgets::{Widget, Block, Borders};
 use tui::layout::{Group, Size, Direction, Rect};
 
 use backends::Backend;
+use chip8::types::ByteVal;
 use chip8::core::{KeyboardInterface, DisplayInterface};
 use chip8::core::{RcRefKeyboardInterface, RcRefDisplayInterface};
 use chip8::display_buffer::{WIDTH, HEIGHT};
@@ -22,11 +23,11 @@ pub struct IOState {
 type RcRefIOState = Arc<Mutex<IOState>>;
 
 impl KeyboardInterface for IOState {
-    fn key_pressed(&self, key: u8) -> bool {
+    fn key_pressed(&self, key: ByteVal) -> bool {
         self.key_pressed[key as usize]
     }
     
-    fn wait_for_key(&self) -> u8 {
+    fn wait_for_key(&self) -> ByteVal {
         0
     }
 }
@@ -39,21 +40,21 @@ impl DisplayInterface for IOState {
     fn clear(&mut self) {
     }
     
-    fn read_pixel(&self, x: u8, y: u8) -> u8 {
+    fn read_pixel(&self, x: ByteVal, y: ByteVal) -> ByteVal {
         0
     }
     
-    fn write_pixel(&mut self, x: u8, y: u8, val: u8) {
+    fn write_pixel(&mut self, x: ByteVal, y: ByteVal, val: ByteVal) {
     }
     
-    fn write_pixel_xor(&mut self, x: u8, y: u8, val: u8) -> bool {
+    fn write_pixel_xor(&mut self, x: ByteVal, y: ByteVal, val: ByteVal) -> bool {
         false
     }
 
-    fn write_pixel_row(&mut self, x: u8, y : u8, rowval: u8) {
+    fn write_pixel_row(&mut self, x: ByteVal, y : ByteVal, rowval: ByteVal) {
     }
     
-    fn write_pixel_row_xor(&mut self, x: u8, y : u8, rowval: u8) -> bool {
+    fn write_pixel_row_xor(&mut self, x: ByteVal, y : ByteVal, rowval: ByteVal) -> bool {
         false
     }
 }
